@@ -1,0 +1,4 @@
+[Project]
+Name=ustl_hashmap
+Manager=KDevCMakeManager
+VersionControl=kdevgit
