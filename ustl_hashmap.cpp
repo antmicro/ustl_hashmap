@@ -1,22 +1,19 @@
 #include "ustl_hashmap.h"
 
-#include <QtGui/QLabel>
-#include <QtGui/QMenu>
-#include <QtGui/QMenuBar>
-#include <QtGui/QAction>
+#include "ustl.h"
 
-ustl_hashmap::ustl_hashmap()
-{
-    QLabel* label = new QLabel( this );
-    label->setText( "Hello World!" );
-    setCentralWidget( label );
-    QAction* action = new QAction(this);
-    action->setText( "Quit" );
-    connect(action, SIGNAL(triggered()), SLOT(close()) );
-    menuBar()->addMenu( "File" )->addAction( action );
+int main() {
+  ustl::cout << "Hello!\n";
+  ustl::hash< uint16_t > hash;
+  ustl::hash< uint32_t > hash2;
+  ustl::cout << hash(1) % 4 << '\n';
+  ustl::cout << hash(1) % 4 << '\n';
+  ustl::cout << hash2(1337) << '\n';
+  ustl::cout << hash2(1337) << '\n';
+  
+  ustl::unordered_map<uint16_t, uint16_t> hashMap;
+  hashMap.insert({1, 2});
+  hashMap.insert({1337, 987});
+  ustl::cout << hashMap[1] << '\n';
+  ustl::cout << hashMap[1337] << '\n';
 }
-
-ustl_hashmap::~ustl_hashmap()
-{}
-
-#include "ustl_hashmap.moc"
