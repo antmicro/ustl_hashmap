@@ -4,6 +4,8 @@
 #include "umultimap.h"
 #include "hash.h"
 
+#include "ofstream.h"
+
 namespace ustl {
   template<
       class Key,
@@ -16,7 +18,7 @@ namespace ustl {
     typedef Key 	key_type;
     typedef T 		mapped_type;
     typedef KeyEqual	key_comparer;
-    typedef pair<const Key, T>		value_type;
+    typedef pair<Key, T>		value_type;
     typedef memblock::size_type		size_type;
     typedef memblock::difference_type	difference_type;
     typedef value_type&		reference;
@@ -30,6 +32,7 @@ namespace ustl {
     typedef ::ustl::reverse_iterator<const_iterator> const_reverse_iterator;
     typedef pair<iterator,bool>	insertrv_t;
     typedef const unordered_map<Key, T, Hash, KeyEqual>&	crself_t;
+    
   public:
     unordered_map();
     unordered_map(size_type bucket_count);
@@ -41,30 +44,35 @@ namespace ustl {
     inline iterator		begin ()	{ assert(false); /* "Iterating over unordered_map is not implemented." */ };
     inline const_iterator	end () const	{ return (const_iterator)_buckets.end(); };
     inline iterator		end () 		{ return const_cast<iterator> (const_cast<crself_t>(*this).end ()); };
-    inline size_type		bucket_count() const 	{ return _buckets.size(); };
+    inline size_type            capacity() const    { return bucket_count(); };
+    inline size_type		bucket_count() const 	{ return _buckets.size()-H; };
+           void                 rehash(size_type new_bucket_count);
   protected:
-    typedef vector<value_type>	bucket_type;
+    typedef value_type  	bucket_type;
     typedef size_type		bucket_key;
     typedef vector<bucket_type>	bucket_container;
     typedef typename bucket_container::iterator		bucket_iterator;
     typedef typename bucket_container::const_iterator	bucket_const_itr;
+    
   protected:
-    inline size_type bucket(const_key_ref key) const 	{ return _hash(key) % bucket_count(); };
-
+    inline size_type    bucket(const_key_ref key) const 	{ return _hash(key) % bucket_count(); };
 
   private:
-    bucket_container _buckets;
-    Hash _hash;
-    key_comparer _key_comparer;
+    bucket_key          find_bucket(const_key_ref key, bucket_key start = 0) const;
+    
+    const size_type     H = 16;
+    bucket_container    _buckets;
+    Hash                _hash;
+    key_comparer        _key_comparer;
   };
 
   template<class Key, class T, class Hash, class KeyEqual>
-  unordered_map<Key, T, Hash, KeyEqual>::unordered_map() : unordered_map(4)
+  unordered_map<Key, T, Hash, KeyEqual>::unordered_map() : _buckets(64+H), _hash(), _key_comparer()
   {    
   }
 
   template<class Key, class T, class Hash, class KeyEqual>
-  unordered_map<Key, T, Hash, KeyEqual>::unordered_map(size_type bucket_count) : _buckets(bucket_count), _hash(), _key_comparer()
+  unordered_map<Key, T, Hash, KeyEqual>::unordered_map(size_type bucket_count) : _buckets(bucket_count+H), _hash(), _key_comparer()
   {    
   }
   
@@ -72,9 +80,11 @@ namespace ustl {
   typename unordered_map<Key, T, Hash, KeyEqual>::const_iterator unordered_map<Key, T, Hash, KeyEqual>::find(const_key_ref key) const
   {
     const bucket_key& bucket_idx = bucket(key);
-    const bucket_type& _bucket = _buckets[bucket_idx];
-    for(size_type i = 0; i < _bucket.size(); ++i) {
-      if( _key_comparer(key, _bucket[i].first) ) return _bucket.iat(i);
+    //const bucket_type& _bucket = _buckets[bucket_idx];
+    //compute 1st bucket and then check whether the key is with-in the neighbourhood
+    for(size_type i = bucket_idx; i < bucket_idx+H; ++i) {
+      cout << "Checking bucket " << i << "\n";
+      if( _key_comparer(key, _buckets[i].first) ) return _buckets.iat(i);
     }
     const_iterator _end = end();
     return _end;
@@ -90,13 +100,38 @@ namespace ustl {
   template<class Key, class T, class Hash, class KeyEqual>
   typename unordered_map<Key, T, Hash, KeyEqual>::insertrv_t unordered_map<Key, T, Hash, KeyEqual>::insert(const_reference v)
   {
+    bucket_key free_bucket;
     iterator element_itr = find(v.first);
     iterator _end = end();
-    bool inserted = (element_itr == _end);
-    if(inserted){
-      _buckets[bucket(v.first)].push_back(v);
-      element_itr = _buckets[bucket(v.first)].end()-1;
+    bool key_present = (element_itr != _end);
+    if(!key_present){
+      bucket_key target_bucket = bucket(v.first);
+      free_bucket = find_bucket(0, target_bucket);
+      if(free_bucket == _buckets.size()) rehash(bucket_count()*2);
+      while (free_bucket >= target_bucket+H)
+      {
+        bucket_key displacement_candidate = find_bucket(v.first, free_bucket-H);
+        if(free_bucket == _buckets.size()) rehash(bucket_count()*2);
+        swap(_buckets[displacement_candidate], _buckets[free_bucket]);
+      }
+      _buckets[free_bucket] = v;
+      element_itr = _buckets.iat(free_bucket);
     }
-    return make_pair(element_itr, inserted);
+    return make_pair(element_itr, !key_present);
+  }
+  
+  template<class Key, class T, class Hash, class KeyEqual>
+  void unordered_map<Key, T, Hash, KeyEqual>::rehash(size_type new_bucket_count)
+  {
+    throw exception(); // "Rehash is not implemented, try using bigger initial bucket size."
+  }
+  
+  template<class Key, class T, class Hash, class KeyEqual>
+  typename unordered_map<Key, T, Hash, KeyEqual>::bucket_key unordered_map<Key, T, Hash, KeyEqual>::find_bucket(const_key_ref key, bucket_key start) const
+  {
+    for(size_type i = start; i < start+H; ++i) {
+      if( _key_comparer(key, _buckets[i].first) ) return i;
+    }
+    return _buckets.size();
   }
 }
