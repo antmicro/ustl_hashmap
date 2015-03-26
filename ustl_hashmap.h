@@ -44,8 +44,9 @@ namespace ustl {
     inline iterator             begin ()        { assert(false); /* "Iterating over unordered_map is not implemented." */ };
     inline const_iterator       end () const    { return (const_iterator)_buckets.end(); };
     inline iterator             end ()          { return const_cast<iterator> (const_cast<crself_t>(*this).end ()); };
-    inline size_type            capacity() const    { return bucket_count(); };
+    inline size_type            capacity () const       { return bucket_count(); };
     inline size_type            bucket_count() const    { return _buckets.size()-H; };
+    inline float                load_factor () const    { return (float)_elements / bucket_count(); };
             void                rehash(size_type new_bucket_count);
   protected:
     typedef value_type          bucket_type;
@@ -64,15 +65,16 @@ namespace ustl {
     bucket_container    _buckets;
     Hash                _hash;
     key_comparer        _key_comparer;
+    size_type           _elements;
   };
 
   template<class Key, class T, class Hash, class KeyEqual>
-  unordered_map<Key, T, Hash, KeyEqual>::unordered_map() : _buckets(64+H), _hash(), _key_comparer()
+  unordered_map<Key, T, Hash, KeyEqual>::unordered_map() : _buckets(64+H), _hash(), _key_comparer(), _elements(0)
   {    
   }
 
   template<class Key, class T, class Hash, class KeyEqual>
-  unordered_map<Key, T, Hash, KeyEqual>::unordered_map(size_type bucket_count) : _buckets(bucket_count+H), _hash(), _key_comparer()
+  unordered_map<Key, T, Hash, KeyEqual>::unordered_map(size_type bucket_count) : _buckets(bucket_count+H), _hash(), _key_comparer(), _elements(0)
   {    
   }
   
@@ -83,7 +85,6 @@ namespace ustl {
     //const bucket_type& _bucket = _buckets[bucket_idx];
     //compute 1st bucket and then check whether the key is with-in the neighbourhood
     for(size_type i = bucket_idx; i < bucket_idx+H; ++i) {
-      cout << "Checking bucket " << i << "\n";
       if( _key_comparer(key, _buckets[i].first) ) return _buckets.iat(i);
     }
     const_iterator _end = end();
@@ -101,21 +102,23 @@ namespace ustl {
   typename unordered_map<Key, T, Hash, KeyEqual>::insertrv_t unordered_map<Key, T, Hash, KeyEqual>::insert(const_reference v)
   {
     bucket_key free_bucket;
+    size_type _buckets_end = _buckets.size();
     iterator element_itr = find(v.first);
     iterator _end = end();
     bool key_present = (element_itr != _end);
-    if(!key_present){
+    if(!key_present) {
       bucket_key target_bucket = bucket(v.first);
       free_bucket = find_bucket(0, target_bucket);
       if(free_bucket == _buckets.size()) rehash(bucket_count()*2);
       while (free_bucket >= target_bucket+H)
       {
         bucket_key displacement_candidate = find_bucket(v.first, free_bucket-H);
-        if(free_bucket == _buckets.size()) rehash(bucket_count()*2);
+        if(free_bucket == _buckets_end) rehash(bucket_count()*2);
         swap(_buckets[displacement_candidate], _buckets[free_bucket]);
       }
       _buckets[free_bucket] = v;
       element_itr = _buckets.iat(free_bucket);
+      _elements++;
     }
     return make_pair(element_itr, !key_present);
   }
@@ -123,6 +126,8 @@ namespace ustl {
   template<class Key, class T, class Hash, class KeyEqual>
   void unordered_map<Key, T, Hash, KeyEqual>::rehash(size_type new_bucket_count)
   {
+    cout << "Needed rehash @load_factor:" << load_factor() << '\n';
+    cout.flush();
     throw exception(); // "Rehash is not implemented, try using bigger initial bucket size."
   }
   
@@ -130,6 +135,8 @@ namespace ustl {
   typename unordered_map<Key, T, Hash, KeyEqual>::bucket_key unordered_map<Key, T, Hash, KeyEqual>::find_bucket(const_key_ref key, bucket_key start) const
   {
     for(size_type i = start; i < start+H; ++i) {
+      cout << "Trying bucket " << i << " stored key: " << _buckets[i].first << endl;
+      cout.flush();
       if( _key_comparer(key, _buckets[i].first) ) return i;
     }
     return _buckets.size();
