@@ -126,11 +126,12 @@ namespace ustl {
   template<class Key, class T, class Hash, class KeyEqual>
   void unordered_map<Key, T, Hash, KeyEqual>::rehash(size_type new_bucket_count)
   {
-    cout << "Needed rehash @load_factor:" << load_factor() << '\n';
+    cout << "rehash is not implemented" << endl;
     cout.flush();
-    throw exception(); // "Rehash is not implemented, try using bigger initial bucket size."
+    throw exception();
+    //_bucket.resize(new_bucket_count+H);
   }
-  
+
   template<class Key, class T, class Hash, class KeyEqual>
   typename unordered_map<Key, T, Hash, KeyEqual>::bucket_key unordered_map<Key, T, Hash, KeyEqual>::find_bucket(const_key_ref key, bucket_key start) const
   {
